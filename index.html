@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LinkForge — QR · Shorten · Linktree</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+  <!-- QR Code library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c27;
+      --border: #2a2a3d;
+      --accent: #7fff6e;
+      --accent2: #ff6eb4;
+      --accent3: #6eb4ff;
+      --text: #e8e8f0;
+      --muted: #6b6b88;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(127,255,110,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(127,255,110,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glow-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb1 { width: 500px; height: 500px; background: rgba(127,255,110,0.08); top: -150px; right: -100px; }
+    .orb2 { width: 400px; height: 400px; background: rgba(255,110,180,0.06); bottom: 100px; left: -150px; }
+
+    header {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 60px 20px 40px;
+    }
+
+    .logo {
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1;
+    }
+    .logo span:nth-child(1) { color: var(--accent); }
+    .logo span:nth-child(2) { color: var(--text); }
+    .logo span:nth-child(3) { color: var(--accent2); }
+
+    .tagline {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    /* Tab nav */
+    .tabs {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 20px 40px;
+      position: relative;
+      z-index: 10;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 10px 22px;
+      border-radius: 50px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #0a0a0f;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+    .tab-btn.active.pink { background: var(--accent2); border-color: var(--accent2); }
+    .tab-btn.active.blue { background: var(--accent3); border-color: var(--accent3); }
+
+    /* Panels */
+    .panel {
+      display: none;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 20px 80px;
+      position: relative;
+      z-index: 10;
+      animation: fadeUp 0.3s ease;
+    }
+    .panel.active { display: block; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      margin-bottom: 18px;
+    }
+
+    /* Inputs */
+    .input-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    input[type="text"], input[type="url"], input[type="color"], select, textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.85rem;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 80px; }
+    ::placeholder { color: var(--muted); }
+
+    .btn {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-green  { background: var(--accent);  color: #0a0a0f; }
+    .btn-pink   { background: var(--accent2); color: #0a0a0f; }
+    .btn-blue   { background: var(--accent3); color: #0a0a0f; }
+    .btn-ghost  { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn:hover  { filter: brightness(1.15); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* QR Output */
+    #qr-output {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-top: 20px;
+    }
+    #qr-box {
+      background: #fff;
+      padding: 18px;
+      border-radius: 12px;
+      display: inline-block;
+    }
+    #qr-box canvas, #qr-box img { display: block; }
+
+    .qr-controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Options row */
+    .options-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .options-row label {
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    /* Short URL output */
+    .result-box {
+      display: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.85rem;
+    }
+    .result-box .result-url {
+      color: var(--accent3);
+      word-break: break-all;
+    }
+    .result-copy-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    /* Linktree builder */
+    #links-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+
+    .link-item {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 8px;
+      align-items: center;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      animation: fadeUp 0.2s ease;
+    }
+    .link-item input { background: transparent; border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 4px 0; font-size: 0.82rem; }
+    .link-item input:focus { border-bottom-color: var(--accent2); }
+
+    .del-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 4px 8px;
+      transition: color 0.2s;
+    }
+    .del-btn:hover { color: var(--accent2); }
+
+    /* Linktree preview */
+    #tree-preview {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .tree-preview-inner {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 24px;
+      text-align: center;
+      max-width: 380px;
+      margin: 0 auto;
+    }
+    .tree-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      margin: 0 auto 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+    }
+    .tree-name { font-size: 1.3rem; font-weight: 800; margin-bottom: 4px; }
+    .tree-bio  { font-size: 0.83rem; color: var(--muted); margin-bottom: 20px; }
+    .tree-links { display: flex; flex-direction: column; gap: 10px; }
+    .tree-link-btn {
+      display: block;
+      padding: 13px 20px;
+      border-radius: 50px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .tree-link-btn:hover { border-color: var(--accent2); color: var(--accent2); transform: scale(1.02); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: var(--accent);
+      color: #0a0a0f;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 12px 24px;
+      border-radius: 50px;
+      z-index: 1000;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* Status */
+    .status {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 6px;
+    }
+    .status.error { background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.3); color: #ff8080; }
+    .status.info  { background: rgba(110,180,255,0.1); border: 1px solid rgba(110,180,255,0.2); color: var(--accent3); }
+
+    /* Export HTML section */
+    .export-note {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 500px) {
+      .options-row { grid-template-columns: 1fr; }
+      .link-item { grid-template-columns: 1fr auto; }
+      .link-item input:nth-child(2) { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="glow-orb orb1"></div>
+<div class="glow-orb orb2"></div>
+
+<header>
+  <div class="logo">
+    <span>Link</span><span>Forge</span><span>.</span>
+  </div>
+  <p class="tagline">QR Generator · URL Shortener · Linktree Builder</p>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="qr" onclick="switchTab('qr', this)">⬛ QR Code</button>
+  <button class="tab-btn" data-tab="shorten" onclick="switchTab('shorten', this)">⚡ Shorten URL</button>
+  <button class="tab-btn" data-tab="linktree" onclick="switchTab('linktree', this)">🌿 Linktree</button>
+</div>
+
+<!-- ─── QR CODE PANEL ─────────────────────────────────── -->
+<div class="panel active" id="panel-qr">
+  <div class="card">
+    <div class="card-title">// Generate QR Code</div>
+    <div class="input-row">
+      <input type="url" id="qr-url" placeholder="https://your-link-here.com" style="flex:1"/>
+      <button class="btn btn-green" onclick="generateQR()">Generate</button>
+    </div>
+
+    <div class="options-row">
+      <div>
+        <label>Size</label>
+        <select id="qr-size">
+          <option value="200">200px — Small</option>
+          <option value="300" selected>300px — Medium</option>
+          <option value="400">400px — Large</option>
+          <option value="512">512px — XL</option>
+        </select>
+      </div>
+      <div>
+        <label>Error Correction</label>
+        <select id="qr-ec">
+          <option value="L">L — Low (7%)</option>
+          <option value="M" selected>M — Medium (15%)</option>
+          <option value="Q">Q — Quartile (25%)</option>
+          <option value="H">H — High (30%)</option>
+        </select>
+      </div>
+      <div>
+        <label>Dark Color</label>
+        <input type="color" id="qr-dark" value="#000000">
+      </div>
+      <div>
+        <label>Light Color</label>
+        <input type="color" id="qr-light" value="#ffffff">
+      </div>
+    </div>
+  </div>
+
+  <div id="qr-output">
+    <div id="qr-box"></div>
+    <div class="qr-controls">
+      <button class="btn btn-green" onclick="downloadQR('png')">⬇ Download PNG</button>
+      <button class="btn btn-ghost" onclick="copyQRtoClipboard()">⎘ Copy Image</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── URL SHORTENER PANEL ───────────────────────────── -->
+<div class="panel" id="panel-shorten">
+  <div class="card">
+    <div class="card-title">// Shorten a URL</div>
+    <div class="input-row">
+      <input type="url" id="long-url" placeholder="https://your-very-long-url.com/with/lots/of/paths" style="flex:1"/>
+      <button class="btn btn-pink" id="shorten-btn" onclick="shortenURL()">Shorten</button>
+    </div>
+    <div id="shorten-status"></div>
+  </div>
+
+  <div class="result-box" id="short-result">
+    <div style="font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Shortened URL</div>
+    <div class="result-url" id="short-url-text"></div>
+    <div class="result-copy-row">
+      <button class="btn btn-ghost" onclick="copyShortURL()">⎘ Copy</button>
+      <button class="btn btn-blue" onclick="generateQRFromShort()">⬛ Make QR</button>
+      <a id="short-url-open" href="#" target="_blank" class="btn btn-ghost">↗ Open</a>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">// How it works</div>
+    <p style="font-family:'Space Mono',monospace;font-size:0.75rem;color:var(--muted);line-height:1.7;">
+      Uses the free <strong style="color:var(--accent3)">TinyURL API</strong> — no sign-up required.<br>
+      Shortened links never expire and redirect instantly.<br>
+      Your original URL is preserved and accessible via the short link.
+    </p>
+  </div>
+</div>
+
+<!-- ─── LINKTREE PANEL ────────────────────────────────── -->
+<div class="panel" id="panel-linktree">
+  <div class="card">
+    <div class="card-title">// Profile</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <input type="text" id="tree-name" placeholder="Your name / brand" style="flex:1;min-width:160px"/>
+      <input type="text" id="tree-bio"  placeholder="Short bio or tagline" style="flex:1;min-width:160px"/>
+    </div>
+    <div style="margin-top:10px">
+      <input type="text" id="tree-emoji" placeholder="Avatar emoji (e.g. 🚀 or leave blank)" />
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">// Your Links</div>
+    <div id="links-list">
+      <!-- items injected here -->
+    </div>
+    <button class="btn btn-ghost" onclick="addLink()" style="width:100%">+ Add Link</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">// Background Color</div>
+    <div class="options-row">
+      <div>
+        <label>Background</label>
+        <input type="color" id="tree-bg" value="#0a0a0f">
+      </div>
+      <div>
+        <label>Button Color</label>
+        <input type="color" id="tree-btn-color" value="#1c1c27">
+      </div>
+      <div>
+        <label>Accent / Text</label>
+        <input type="color" id="tree-accent" value="#7fff6e">
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn btn-pink" onclick="previewTree()" style="flex:1">👁 Preview</button>
+    <button class="btn btn-blue" onclick="exportTree()" style="flex:1">⬇ Export HTML</button>
+  </div>
+  <p class="export-note" style="margin-top:10px">
+    Export generates a standalone <code>linktree.html</code> you can host on GitHub Pages, Netlify, or anywhere.
+  </p>
+
+  <div id="tree-preview">
+    <div class="card-title" style="margin-top:20px;margin-bottom:12px">// Live Preview</div>
+    <div class="tree-preview-inner" id="tree-preview-inner"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Utilities ────────────────────────────────────────────
+function showToast(msg, color) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = color || 'var(--accent)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active','pink','blue'); });
+  document.getElementById('panel-' + tab).classList.add('active');
+  btn.classList.add('active');
+  if (tab === 'shorten') btn.classList.add('pink');
+  if (tab === 'linktree') btn.classList.add('blue');
+}
+
+// ── QR Code ──────────────────────────────────────────────
+let qrInstance = null;
+
+function generateQR() {
+  const url = document.getElementById('qr-url').value.trim();
+  if (!url) { showToast('Enter a URL first', '#ff8080'); return; }
+
+  const size  = parseInt(document.getElementById('qr-size').value);
+  const ec    = document.getElementById('qr-ec').value;
+  const dark  = document.getElementById('qr-dark').value;
+  const light = document.getElementById('qr-light').value;
+
+  const box = document.getElementById('qr-box');
+  box.innerHTML = '';
+  if (qrInstance) { qrInstance.clear(); }
+
+  qrInstance = new QRCode(box, {
+    text: url,
+    width: size,
+    height: size,
+    colorDark: dark,
+    colorLight: light,
+    correctLevel: QRCode.CorrectLevel[ec]
+  });
+
+  document.getElementById('qr-output').style.display = 'flex';
+  showToast('QR Code ready!');
+}
+
+function getQRCanvas() {
+  return document.querySelector('#qr-box canvas');
+}
+
+function downloadQR(fmt) {
+  const canvas = getQRCanvas();
+  if (!canvas) { showToast('Generate a QR first', '#ff8080'); return; }
+  const link = document.createElement('a');
+  link.download = 'qrcode.' + fmt;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast('Downloading…');
+}
+
+async function copyQRtoClipboard() {
+  const canvas = getQRCanvas();
+  if (!canvas) { showToast('Generate a QR first', '#ff8080'); return; }
+  canvas.toBlob(async blob => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+      showToast('Copied to clipboard!');
+    } catch { showToast('Copy failed — try download instead', '#ff8080'); }
+  });
+}
+
+// ── URL Shortener ─────────────────────────────────────────
+async function shortenURL() {
+  const url = document.getElementById('long-url').value.trim();
+  if (!url) { showToast('Enter a URL first', '#ff8080'); return; }
+
+  const btn = document.getElementById('shorten-btn');
+  const status = document.getElementById('shorten-status');
+  btn.disabled = true;
+  btn.textContent = 'Working…';
+  status.innerHTML = '';
+
+  try {
+    // TinyURL API (free, no key required)
+    const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
+    if (!res.ok) throw new Error('API error');
+    const short = await res.text();
+
+    document.getElementById('short-url-text').textContent = short;
+    document.getElementById('short-url-open').href = short;
+    document.getElementById('short-result').style.display = 'block';
+    showToast('URL shortened!', 'var(--accent2)');
+  } catch (e) {
+    status.innerHTML = `<div class="status error">Failed to shorten — check your URL or try again. (CORS may block this in some browsers; works when hosted.)</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Shorten';
+  }
+}
+
+function copyShortURL() {
+  const url = document.getElementById('short-url-text').textContent;
+  navigator.clipboard.writeText(url).then(() => showToast('Copied!', 'var(--accent2)'));
+}
+
+function generateQRFromShort() {
+  const url = document.getElementById('short-url-text').textContent;
+  document.getElementById('qr-url').value = url;
+  switchTab('qr', document.querySelector('[data-tab="qr"]'));
+  setTimeout(generateQR, 100);
+}
+
+// ── Linktree ──────────────────────────────────────────────
+let linkCount = 0;
+
+function addLink(label='', url='') {
+  linkCount++;
+  const id = 'link-' + linkCount;
+  const div = document.createElement('div');
+  div.className = 'link-item';
+  div.id = id;
+  div.innerHTML = `
+    <input type="text"  placeholder="Label (e.g. Twitter)" value="${label}" />
+    <input type="url"   placeholder="https://..." value="${url}" />
+    <button class="del-btn" onclick="document.getElementById('${id}').remove()">✕</button>`;
+  document.getElementById('links-list').appendChild(div);
+}
+
+function getTreeData() {
+  const name    = document.getElementById('tree-name').value.trim() || 'My Links';
+  const bio     = document.getElementById('tree-bio').value.trim()  || '';
+  const emoji   = document.getElementById('tree-emoji').value.trim() || '🔗';
+  const bg      = document.getElementById('tree-bg').value;
+  const btnColor= document.getElementById('tree-btn-color').value;
+  const accent  = document.getElementById('tree-accent').value;
+
+  const links = [];
+  document.querySelectorAll('.link-item').forEach(item => {
+    const inputs = item.querySelectorAll('input');
+    const label  = inputs[0].value.trim();
+    const url    = inputs[1].value.trim();
+    if (label && url) links.push({ label, url });
+  });
+
+  return { name, bio, emoji, bg, btnColor, accent, links };
+}
+
+function previewTree() {
+  const d = getTreeData();
+  const preview = document.getElementById('tree-preview-inner');
+  preview.style.background = d.bg;
+
+  preview.innerHTML = `
+    <div class="tree-avatar">${d.emoji}</div>
+    <div class="tree-name" style="color:${d.accent}">${d.name}</div>
+    ${d.bio ? `<div class="tree-bio">${d.bio}</div>` : ''}
+    <div class="tree-links">
+      ${d.links.map(l => `
+        <a class="tree-link-btn" href="${l.url}" target="_blank"
+           style="background:${d.btnColor};border-color:${d.btnColor}40;color:${d.accent}">
+          ${l.label}
+        </a>`).join('')}
+    </div>`;
+
+  document.getElementById('tree-preview').style.display = 'block';
+  showToast('Preview updated!', 'var(--accent3)');
+}
+
+function exportTree() {
+  const d = getTreeData();
+  if (d.links.length === 0) { showToast('Add at least one link', '#ff8080'); return; }
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>${d.name}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      min-height:100vh;
+      background:${d.bg};
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Syne',sans-serif;
+      padding:40px 20px;
+    }
+    .card{
+      max-width:420px;width:100%;
+      text-align:center;
+      padding:40px 28px;
+    }
+    .avatar{
+      width:82px;height:82px;border-radius:50%;
+      background:${d.accent}22;
+      border:2px solid ${d.accent}55;
+      display:flex;align-items:center;justify-content:center;
+      font-size:2.2rem;margin:0 auto 16px;
+    }
+    h1{font-size:1.6rem;font-weight:800;color:${d.accent};margin-bottom:6px}
+    .bio{font-size:0.88rem;color:${d.accent}99;margin-bottom:28px;line-height:1.5}
+    .links{display:flex;flex-direction:column;gap:12px}
+    a{
+      display:block;padding:14px 20px;border-radius:50px;
+      background:${d.btnColor};border:1px solid ${d.accent}33;
+      color:${d.accent};text-decoration:none;font-size:0.9rem;font-weight:600;
+      transition:all .2s;
+    }
+    a:hover{background:${d.accent}22;border-color:${d.accent};transform:scale(1.02)}
+    footer{margin-top:32px;font-size:0.68rem;color:${d.accent}44;letter-spacing:2px;text-transform:uppercase}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="avatar">${d.emoji}</div>
+    <h1>${d.name}</h1>
+    ${d.bio ? `<p class="bio">${d.bio}</p>` : '<p class="bio" style="margin-bottom:28px"></p>'}
+    <div class="links">
+      ${d.links.map(l => `<a href="${l.url}" target="_blank">${l.label}</a>`).join('\n      ')}
+    </div>
+    <footer>Made with LinkForge</footer>
+  </div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'linktree.html';
+  a.click();
+  showToast('linktree.html exported!', 'var(--accent3)');
+}
+
+// ── Init ─────────────────────────────────────────────────
+addLink('GitHub', 'https://github.com/');
+addLink('Twitter / X', 'https://twitter.com/');
+addLink('Portfolio', 'https://yoursite.com/');
+
+document.getElementById('qr-url').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generateQR();
+});
+document.getElementById('long-url').addEventListener('keydown', e => {
+  if (e.key === 'Enter') shortenURL();
+});
+</script>
+</body>
+</html>
+`;
